@@ -56,19 +56,19 @@ REMOTE_TYPES = {DEVICE_TYPE_REMOTE_CONTROL}
 BUTTON_TYPES = {DEVICE_TYPE_SCRIPT}
 SCENE_TYPES = {DEVICE_TYPE_LIGHT_SCHEME}
 
-# AC mode codes (bits 4-7 of byte 0)
-AC_MODE_AUTO = 0
-AC_MODE_HEAT = 1
-AC_MODE_COOL = 2
-AC_MODE_FAN_ONLY = 3
-AC_MODE_DRY = 4
+# AC mode codes (bits 4-7 of byte 0) — verified by live testing
+AC_MODE_FAN_ONLY = 0
+AC_MODE_COOL = 1
+AC_MODE_DRY = 2
+AC_MODE_HEAT = 3
+AC_MODE_AUTO = 4
 
 AC_MODES = {
-    AC_MODE_AUTO: "auto",
-    AC_MODE_HEAT: "heat",
-    AC_MODE_COOL: "cool",
     AC_MODE_FAN_ONLY: "fan_only",
+    AC_MODE_COOL: "cool",
     AC_MODE_DRY: "dry",
+    AC_MODE_HEAT: "heat",
+    AC_MODE_AUTO: "auto",
 }
 
 # AC fan speed codes (low nibble of byte 4)

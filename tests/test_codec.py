@@ -61,9 +61,9 @@ class TestACState:
         """Test decoding a real AC state from the controller."""
         ac = ACState.from_hex("39001C620431100000")
         assert ac.power is True
-        assert ac.mode == 3  # Fan only
+        assert ac.mode == 3  # Heat (verified: 0=Fan, 1=Cool, 2=Dry, 3=Heat, 4=Auto)
         assert ac.temperature == 28
-        assert ac.fan == 4  # Turbo
+        assert ac.fan == 4
         assert ac.vane_horizontal == 2
         assert ac.vane_vertical == 6
 
@@ -121,10 +121,10 @@ class TestACState:
     def test_encode_mode_change(self) -> None:
         """Test changing AC mode."""
         ac = ACState.from_hex("39001C620431100000")
-        ac.mode = 2  # Cool
+        ac.mode = 1  # Cool (verified mapping)
         encoded = ac.to_hex()
         b0 = int(encoded[:2], 16)
-        assert (b0 >> 4) & 0xF == 2
+        assert (b0 >> 4) & 0xF == 1
 
     def test_all_modes(self) -> None:
         """Test all AC mode values decode correctly."""
