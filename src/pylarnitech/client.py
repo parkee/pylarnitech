@@ -328,7 +328,9 @@ class LarnitechClient:
     async def get_devices(self) -> list[LarnitechDevice]:
         """Get list of all devices."""
         data = await self._http_request({"requestType": "getDevicesList"})
-        devices_raw = data.get("devices", [])
+        if not isinstance(data, dict):
+            return []
+        devices_raw = data.get("devices") or []
         return [LarnitechDevice.from_dict(d) for d in devices_raw]
 
     async def get_device_status(
@@ -339,12 +341,16 @@ class LarnitechClient:
         data = await self._http_request(
             {"requestType": "getDeviceStatus", "addr": addr}
         )
-        return LarnitechDeviceStatus.from_dict(data.get("status", {}))
+        if not isinstance(data, dict):
+            return LarnitechDeviceStatus(addr=addr, type="", state="")
+        return LarnitechDeviceStatus.from_dict(data.get("status") or {})
 
     async def get_all_statuses(self) -> list[LarnitechDeviceStatus]:
         """Get status of all devices."""
         data = await self._http_request({"requestType": "getAllDevicesStatus"})
-        statuses_raw = data.get("statuses", [])
+        if not isinstance(data, dict):
+            return []
+        statuses_raw = data.get("statuses") or []
         return [LarnitechDeviceStatus.from_dict(s) for s in statuses_raw]
 
     async def set_device_status(
