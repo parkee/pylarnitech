@@ -107,7 +107,9 @@ class LarnitechClient:
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """Get or create an aiohttp session."""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(force_close=True),
+            )
             self._own_session = True
         return self._session
 
@@ -276,7 +278,12 @@ class LarnitechClient:
         request: dict[str, Any],
         timeout: float = 30,
     ) -> dict[str, Any]:
-        """Send a JSON request via HTTP GET and return the response."""
+        """Send a JSON request via HTTP GET and return the response.
+
+        Uses Connection: close header and force_close connector because
+        the Larnitech controller sends 'Connection: Closed' (capital C)
+        which can confuse aiohttp's keep-alive handling.
+        """
         session = await self._ensure_session()
         request["key"] = self._api_key
         json_str = json.dumps(request)
@@ -289,7 +296,9 @@ class LarnitechClient:
                         raise LarnitechApiError(
                             f"HTTP {resp.status} from controller"
                         )
-                    data = await resp.json(content_type=None)
+                    # Read raw text first, then parse JSON
+                    # (resp.json can return None if body is empty)
+                    text = await resp.text()
         except TimeoutError as err:
             raise LarnitechTimeoutError(
                 f"Timeout connecting to {self._host}"
@@ -299,7 +308,17 @@ class LarnitechClient:
                 f"Connection error to {self._host}: {err}"
             ) from err
 
-        if error := data.get("error"):
+        if not text:
+            raise LarnitechConnectionError("Empty response from controller")
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as err:
+            raise LarnitechConnectionError(
+                f"Invalid JSON from controller: {text[:100]}"
+            ) from err
+
+        if isinstance(data, dict) and (error := data.get("error")):
             raise LarnitechApiError(error, error_type=error)
 
         return data
