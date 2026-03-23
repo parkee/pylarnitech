@@ -30,11 +30,17 @@ def encode_float2(value: float) -> tuple[int, int]:
 
 @dataclass
 class ACState:
-    """Decoded AC device state."""
+    """Decoded AC device state.
+
+    Temperature is stored as statusFloat2 across bytes 1-2:
+      byte 1 = fractional part (0x00=.0, 0x80=.5)
+      byte 2 = integer part (degrees Celsius)
+      temperature = int16_le(byte1, byte2) / 256.0
+    """
 
     power: bool
     mode: int
-    temperature: int
+    temperature: float
     fan: int
     vane_horizontal: int
     vane_vertical: int
@@ -47,17 +53,19 @@ class ACState:
             return cls(
                 power=False,
                 mode=0,
-                temperature=0,
+                temperature=0.0,
                 fan=0,
                 vane_horizontal=0,
                 vane_vertical=0,
                 raw=hex_state or "",
             )
         b = bytes.fromhex(hex_state)
+        # Temperature as statusFloat2 from bytes 1-2
+        temp = status_float2(b[1], b[2]) if len(b) > 2 else 0.0
         return cls(
             power=bool(b[0] & 0x01),
             mode=(b[0] >> 4) & 0x0F,
-            temperature=b[2] if len(b) > 2 else 0,
+            temperature=temp,
             fan=b[4] & 0x0F if len(b) > 4 else 0,
             vane_horizontal=b[3] & 0x0F if len(b) > 3 else 0,
             vane_vertical=(b[3] >> 4) & 0x0F if len(b) > 3 else 0,
@@ -73,8 +81,8 @@ class ACState:
         if self.raw and len(self.raw) >= 2:
             orig_b0 = int(self.raw[:2], 16)
             b0 = (b0 & 0xF1) | (orig_b0 & 0x0E)
-        b1 = 0x00
-        b2 = self.temperature & 0xFF
+        # Temperature as statusFloat2: encode to bytes 1-2
+        b1, b2 = encode_float2(self.temperature)
         b3 = ((self.vane_vertical & 0x0F) << 4) | (self.vane_horizontal & 0x0F)
         b4 = self.fan & 0x0F
         return f"{b0:02x}{b1:02x}{b2:02x}{b3:02x}{b4:02x}{extra}"

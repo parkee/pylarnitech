@@ -62,7 +62,7 @@ class TestACState:
         ac = ACState.from_hex("39001C620431100000")
         assert ac.power is True
         assert ac.mode == 3  # Heat (verified: 0=Fan, 1=Cool, 2=Dry, 3=Heat, 4=Auto)
-        assert ac.temperature == 28
+        assert ac.temperature == 28.0
         assert ac.fan == 4
         assert ac.vane_horizontal == 2
         assert ac.vane_vertical == 6
@@ -72,13 +72,13 @@ class TestACState:
         ac = ACState.from_hex("38001C620331")
         assert ac.power is False
         assert ac.mode == 3
-        assert ac.temperature == 28
+        assert ac.temperature == 28.0
 
     def test_decode_empty(self) -> None:
         """Test decoding empty string."""
         ac = ACState.from_hex("")
         assert ac.power is False
-        assert ac.temperature == 0
+        assert ac.temperature == 0.0
 
     def test_decode_short(self) -> None:
         """Test decoding too-short string."""
