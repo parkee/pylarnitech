@@ -174,6 +174,35 @@ class LarnitechAdminClient:
             }
         return result
 
+    async def get_modules_extra_data(self) -> dict[str, dict[str, Any]]:
+        """Get extra data for modules (locations, hw config).
+
+        Returns dict with keys:
+        - locations: {module_id: {"name": primary_area, "all": [areas]}}
+        - hw: {module_id: hw_config_string}
+        """
+        return await self._api_call(
+            "Modules.getModulesExtraData",
+            ["", "", "0", "0", "-1", "0", "id_asc"],
+        )
+
+    async def get_module_filters(self) -> dict[str, str]:
+        """Get module type descriptions.
+
+        Returns dict mapping mm_id to full model description.
+        E.g., {"144": "DW-010.C", "120": "CW-MLI.B Multi sensor..."}
+        """
+        data = await self._api_call("Modules.getFilters")
+        if not isinstance(data, dict):
+            return {}
+        result: dict[str, str] = {}
+        for item in data.get("type", []):
+            mm_id = str(item.get("mm_id", ""))
+            model = item.get("model_name", "")
+            if mm_id and model:
+                result[mm_id] = model
+        return result
+
     async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
         """Reboot a CAN bus module.
 
