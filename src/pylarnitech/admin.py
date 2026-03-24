@@ -203,6 +203,21 @@ class LarnitechAdminClient:
                 result[mm_id] = model
         return result
 
+    async def get_module_hw_config(
+        self,
+        module_id: str,
+    ) -> dict[str, Any]:
+        """Get hardware configuration for a specific module.
+
+        Returns per-pin configuration including device types,
+        dimmer min/max/runtime, leak sensor settings, etc.
+        This is the data behind the admin panel's "Hardware Configuration".
+        """
+        return await self._api_call(
+            "Modules.getModuleHWConfig",
+            [module_id],
+        )
+
     async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
         """Reboot a CAN bus module.
 
