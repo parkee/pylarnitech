@@ -137,14 +137,15 @@ class LarnitechAdminClient:
         """
         return await self._api_call("AccessKeys.getDefaultSecuritySettings")
 
-    async def get_modules(self) -> dict[str, str]:
-        """Get module ID to model name mapping.
+    async def get_modules(self) -> dict[str, dict[str, str]]:
+        """Get module info mapping.
 
         Calls Modules.getModules to retrieve the real hardware model
-        names for all CAN bus modules.
+        names, serial numbers, and firmware versions for all CAN modules.
 
-        Returns dict mapping module_id (str) to model short name (str).
-        E.g., {"471": "DW-010.C", "188": "DE-MG.plus", ...}
+        Returns dict mapping module_id (str) to info dict with keys:
+        model, serial, firmware, serial_num (hex serial as str).
+        E.g., {"471": {"model": "DW-010.C", "serial": "0xfc4a21f6", ...}}
         """
         data = await self._api_call(
             "Modules.getModules",
@@ -152,16 +153,41 @@ class LarnitechAdminClient:
         )
         if not isinstance(data, dict):
             return {}
-        result: dict[str, str] = {}
+        result: dict[str, dict[str, str]] = {}
         for m in data.get("modules", []):
             mid = m.get("module_id", "")
+            if not mid:
+                continue
             model_full = m.get("model_name", "")
-            # model_name contains "DW-010.C <description>..."
-            # Take the first word as the short model name
             model_short = model_full.split(" ")[0] if model_full else ""
-            if mid and model_short:
-                result[str(mid)] = model_short
+            sn_hex = m.get("module_sn", "")
+            # Convert hex serial to decimal for reboot command
+            try:
+                sn_dec = str(int(sn_hex, 16)) if sn_hex else ""
+            except ValueError:
+                sn_dec = ""
+            result[str(mid)] = {
+                "model": model_short,
+                "serial": sn_hex,
+                "serial_dec": sn_dec,
+                "firmware": m.get("module_fw_ver", ""),
+            }
         return result
+
+    async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
+        """Reboot a CAN bus module.
+
+        Args:
+            module_id: The module ID (e.g., "319")
+            serial_dec: The module serial number in decimal (e.g., "3196289470")
+
+        Returns True on success.
+        """
+        data = await self._api_call(
+            "Modules.rebootModule",
+            [module_id, serial_dec],
+        )
+        return bool(data)
 
     async def get_controller_info(self) -> LarnitechControllerInfo:
         """Get complete controller info by calling multiple admin APIs.
