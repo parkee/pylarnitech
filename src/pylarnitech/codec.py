@@ -59,7 +59,13 @@ class ACState:
                 vane_vertical=0,
                 raw=hex_state or "",
             )
-        b = bytes.fromhex(hex_state)
+        try:
+            b = bytes.fromhex(hex_state)
+        except ValueError:
+            return cls(
+                power=False, mode=0, temperature=0.0, fan=0,
+                vane_horizontal=0, vane_vertical=0, raw=hex_state,
+            )
         # Temperature as statusFloat2 from bytes 1-2
         temp = status_float2(b[1], b[2]) if len(b) > 2 else 0.0
         return cls(
@@ -102,7 +108,10 @@ class BlindsState:
         """Decode hex state string to BlindsState."""
         if not hex_state or len(hex_state) < 6:
             return cls(command=0, position=0, tilt=0, raw=hex_state or "")
-        b = bytes.fromhex(hex_state)
+        try:
+            b = bytes.fromhex(hex_state)
+        except ValueError:
+            return cls(command=0, position=0, tilt=0, raw=hex_state)
         return cls(
             command=b[0],
             position=b[1],
