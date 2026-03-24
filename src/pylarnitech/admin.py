@@ -35,9 +35,16 @@ class LarnitechAdminClient:
         self._cookies: dict[str, str] = {}
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
-        """Get or create an aiohttp session."""
+        """Get or create an aiohttp session.
+
+        Uses unsafe=True on the cookie jar because the controller
+        is accessed by IP address, and the default cookie jar rejects
+        cookies for IP-based hosts.
+        """
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                cookie_jar=aiohttp.CookieJar(unsafe=True),
+            )
             self._own_session = True
         return self._session
 
