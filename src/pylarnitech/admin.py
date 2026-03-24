@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import aiohttp
@@ -166,11 +167,15 @@ class LarnitechAdminClient:
                 sn_dec = str(int(sn_hex, 16)) if sn_hex else ""
             except ValueError:
                 sn_dec = ""
+            # Firmware version contains HTML tags — strip them
+            fw_raw = m.get("module_fw_ver", "")
+            fw_clean = re.sub(r"<[^>]+>", "", fw_raw).strip()
+
             result[str(mid)] = {
                 "model": model_short,
                 "serial": sn_hex,
                 "serial_dec": sn_dec,
-                "firmware": m.get("module_fw_ver", ""),
+                "firmware": fw_clean,
             }
         return result
 
