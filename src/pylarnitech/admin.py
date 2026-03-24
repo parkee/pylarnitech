@@ -130,6 +130,32 @@ class LarnitechAdminClient:
         """
         return await self._api_call("AccessKeys.getDefaultSecuritySettings")
 
+    async def get_modules(self) -> dict[str, str]:
+        """Get module ID to model name mapping.
+
+        Calls Modules.getModules to retrieve the real hardware model
+        names for all CAN bus modules.
+
+        Returns dict mapping module_id (str) to model short name (str).
+        E.g., {"471": "DW-010.C", "188": "DE-MG.plus", ...}
+        """
+        data = await self._api_call(
+            "Modules.getModules",
+            ["", "", "", "", "-1", "", "id_asc"],
+        )
+        if not isinstance(data, dict):
+            return {}
+        result: dict[str, str] = {}
+        for m in data.get("modules", []):
+            mid = m.get("module_id", "")
+            model_full = m.get("model_name", "")
+            # model_name contains "DW-010.C <description>..."
+            # Take the first word as the short model name
+            model_short = model_full.split(" ")[0] if model_full else ""
+            if mid and model_short and model_short != "Firmware":
+                result[str(mid)] = model_short
+        return result
+
     async def get_controller_info(self) -> LarnitechControllerInfo:
         """Get complete controller info by calling multiple admin APIs.
 
