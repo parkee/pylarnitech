@@ -72,12 +72,14 @@ AC_MODES = {
 }
 
 # AC fan speed codes (low nibble of byte 4)
+# AC fan speed codes (low nibble of byte 4) — verified by live testing
 AC_FAN_AUTO = 0
 AC_FAN_LOW = 1
 AC_FAN_MEDIUM = 2
 AC_FAN_HIGH = 3
 AC_FAN_TURBO = 4
-AC_FAN_NIGHT = 5
+# Note: 5 is skipped/invalid on tested hardware
+AC_FAN_NIGHT = 6
 
 AC_FAN_MODES = {
     AC_FAN_AUTO: "auto",
