@@ -218,6 +218,71 @@ class LarnitechAdminClient:
             [module_id],
         )
 
+    async def get_module_info(self, module_id: str) -> dict[str, Any]:
+        """Get pin-level info for a module (types and paths).
+
+        Returns dict with 'data' (pin→type/path) and 'types' (type codes).
+        """
+        return await self._api_call(
+            "Modules.getModuleInfo",
+            [module_id],
+        )
+
+    async def get_module_detail(
+        self, module_id: str, serial_dec: str
+    ) -> dict[str, Any]:
+        """Get detailed single module info (status, temp, uptime, etc).
+
+        Args:
+            module_id: e.g., "339"
+            serial_dec: decimal serial, e.g., "200115670"
+        """
+        return await self._api_call(
+            "Modules.getModule",
+            [f"{module_id}_{serial_dec}", serial_dec],
+        )
+
+    async def get_module_params(
+        self, module_id: str, serial_dec: str
+    ) -> dict[str, Any]:
+        """Get runtime parameters for a module (time, temp, etc)."""
+        return await self._api_call(
+            "Modules.getMainModuleParams",
+            [f"{module_id}_{serial_dec}"],
+        )
+
+    async def get_module_logs(self, module_id: str) -> list[dict[str, Any]]:
+        """Get event logs for a module."""
+        result = await self._api_call(
+            "Logs.getLogsByModuleId",
+            [module_id],
+        )
+        if isinstance(result, list):
+            return result
+        return []
+
+    async def set_module_hw(
+        self,
+        module_id: str,
+        hw_config: str,
+    ) -> bool:
+        """Set hardware configuration for a module.
+
+        Args:
+            module_id: e.g., "339"
+            hw_config: URL-encoded hw config string, e.g.,
+                "hw[IN][1]=K&hw[IN][2]=G&hw[IN][3]=K..."
+
+        Returns True on success.
+        """
+        from urllib.parse import quote
+
+        data = await self._api_call(
+            "Modules.setModuleHW",
+            [module_id, quote(hw_config, safe="")],
+        )
+        return bool(data)
+
     async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
         """Reboot a CAN bus module.
 
