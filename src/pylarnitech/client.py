@@ -53,6 +53,7 @@ class LarnitechClient:
         self._session = session
         self._own_session = session is None
         self._ws: aiohttp.ClientWebSocketResponse | None = None
+        self._ws_session: aiohttp.ClientSession | None = None
         self._ws_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._status_callbacks: list[Callable[[dict[str, Any]], None]] = []
@@ -105,7 +106,12 @@ class LarnitechClient:
         return unsubscribe
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
-        """Get or create an aiohttp session."""
+        """Get or create an aiohttp session for HTTP requests.
+
+        Uses force_close=True because the Larnitech controller sends
+        non-standard 'Connection: Closed' (capital C) which breaks
+        aiohttp keep-alive.
+        """
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(force_close=True),
@@ -127,11 +133,16 @@ class LarnitechClient:
         self._start_listening()
 
     async def _ws_connect(self) -> None:
-        """Establish the WebSocket connection."""
-        session = await self._ensure_session()
+        """Establish the WebSocket connection.
+
+        Uses a SEPARATE session without force_close, because WebSocket
+        requires a persistent connection (force_close=True kills it).
+        """
+        # WebSocket needs its own session — force_close breaks WS push
+        self._ws_session = aiohttp.ClientSession()
         ws_url = f"http://{self._host}:{self._ws_port}/"
         try:
-            self._ws = await session.ws_connect(
+            self._ws = await self._ws_session.ws_connect(
                 ws_url,
                 timeout=aiohttp.ClientWSTimeout(ws_close=10),
             )
@@ -164,9 +175,12 @@ class LarnitechClient:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._ws_task
             self._ws_task = None
-        # Close WebSocket
+        # Close WebSocket and its separate session
         if self._ws and not self._ws.closed:
             await self._ws.close()
+        if self._ws_session and not self._ws_session.closed:
+            await self._ws_session.close()
+            self._ws_session = None
             self._ws = None
         # Close session if we own it
         if self._own_session and self._session and not self._session.closed:
