@@ -173,6 +173,17 @@ class LarnitechClient:
             await self._session.close()
             self._session = None
 
+    async def ws_send_json(self, data: dict[str, Any]) -> None:
+        """Send a JSON message over WebSocket.
+
+        Used to send an initial request that triggers the server
+        to start pushing deviceStatusChange events.
+        """
+        if self._ws is None or self._ws.closed:
+            raise LarnitechConnectionError("WebSocket not connected")
+        data["key"] = self._api_key
+        await self._ws.send_json(data)
+
     def _start_listening(self) -> None:
         """Start background task to listen for WebSocket messages."""
         if self._ws_task is not None and not self._ws_task.done():
