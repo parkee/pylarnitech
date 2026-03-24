@@ -1,6 +1,6 @@
 [project]
 name = "pylarnitech"
-version = "0.2.7"
+version = "0.2.8"
 description = "Python client library for Larnitech smart home controllers"
 readme = "README.md"
 authors = [

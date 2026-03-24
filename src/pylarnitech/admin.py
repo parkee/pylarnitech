@@ -270,23 +270,122 @@ class LarnitechAdminClient:
         self,
         module_id: str,
         hw_config: str,
-    ) -> bool:
+    ) -> dict[str, Any]:
         """Set hardware configuration for a module.
+
+        The hw_config string uses query-string format with bracket notation:
+            hw[IN][1]=K&hw[IN][2]=G&...
+
+        The brackets are URL-encoded once before being placed in the form
+        POST body.  aiohttp then encodes the '%' signs a second time,
+        resulting in the double-encoding the PHP backend expects.  The '='
+        and '&' characters are left literal so that aiohttp's form encoding
+        handles them correctly.
+
+        IMPORTANT: You must send ALL pins for a connector in a single call.
+        Sending only one pin will reset all other pins to defaults.
 
         Args:
             module_id: e.g., "339"
-            hw_config: URL-encoded hw config string, e.g.,
+            hw_config: Raw hw config string, e.g.,
                 "hw[IN][1]=K&hw[IN][2]=G&hw[IN][3]=K..."
 
-        Returns True on success.
+        Returns dict with 'success' (bool) and 'message' (str).
         """
         from urllib.parse import quote
 
-        data = await self._api_call(
+        # Encode brackets but leave = and & literal for aiohttp form encoding
+        encoded = quote(hw_config, safe="=&")
+        raw = await self._api_call(
             "Modules.setModuleHW",
-            [module_id, quote(hw_config, safe="")],
+            [module_id, encoded],
         )
-        return bool(data)
+        if isinstance(raw, dict):
+            return raw
+        return {"success": bool(raw), "message": ""}
+
+    async def set_module_pin_type(
+        self,
+        module_id: str,
+        connector: str,
+        pin_num: str,
+        hw_letter: str,
+    ) -> dict[str, Any]:
+        """Change a single pin's type while preserving all other pins.
+
+        Fetches the current HW config, rebuilds the complete connector
+        config with the one pin changed, and sends all pins together.
+
+        Args:
+            module_id: e.g., "339"
+            connector: e.g., "IN", "OUT", "dm"
+            pin_num: e.g., "7"
+            hw_letter: The hw letter for the target type, e.g., "K", "L"
+
+        Returns dict with 'success' (bool) and 'message' (str).
+        """
+        hw_config = await self.get_module_hw_config(module_id)
+        if not isinstance(hw_config, dict):
+            return {"success": False, "message": "Could not fetch HW config"}
+
+        data = hw_config.get("data", {})
+        hw_types = hw_config.get("hwTypes", {})
+        connector_pins = data.get(connector, {})
+        connector_hw = hw_types.get(connector, {})
+
+        if not isinstance(connector_pins, dict):
+            return {"success": False, "message": f"No pins for connector {connector}"}
+
+        # Normalize hwTypes to dict form
+        if isinstance(connector_hw, list):
+            connector_hw = {str(i): v for i, v in enumerate(connector_hw)}
+
+        # Build reverse mapping: type_code → hw_letter
+        code_to_letter = connector_hw
+
+        # Build complete hw config for all pins in this connector
+        parts: list[str] = []
+        for pn, pin_data in connector_pins.items():
+            current_code = (
+                pin_data.get("value")
+                if isinstance(pin_data, dict)
+                else pin_data
+            )
+            if str(pn) == str(pin_num):
+                # Use the new letter for the pin being changed
+                parts.append(f"hw[{connector}][{pn}]={hw_letter}")
+            else:
+                # Keep current letter
+                letter = code_to_letter.get(str(current_code), "-")
+                parts.append(f"hw[{connector}][{pn}]={letter}")
+
+        if not parts:
+            return {"success": False, "message": "No pins found"}
+
+        full_config = "&".join(parts)
+        return await self.set_module_hw(module_id, full_config)
+
+    async def set_module_pin_param(
+        self,
+        module_id: str,
+        connector: str,
+        pin_num: str,
+        param_name: str,
+        value: int,
+    ) -> dict[str, Any]:
+        """Set a single pin parameter (min, max, runtime, etc).
+
+        Args:
+            module_id: e.g., "339"
+            connector: e.g., "dm", "OUT"
+            pin_num: e.g., "1"
+            param_name: e.g., "min", "max", "runtime"
+            value: Integer value to set
+
+        Returns dict with 'success' (bool) and 'message' (str).
+        """
+        hw_config = f"hw[{connector}][{pin_num}][{param_name}]={value}"
+        return await self.set_module_hw(module_id, hw_config)
 
     async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
         """Reboot a CAN bus module.
