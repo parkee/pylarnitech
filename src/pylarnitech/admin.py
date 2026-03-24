@@ -159,7 +159,7 @@ class LarnitechAdminClient:
             # model_name contains "DW-010.C <description>..."
             # Take the first word as the short model name
             model_short = model_full.split(" ")[0] if model_full else ""
-            if mid and model_short and model_short != "Firmware":
+            if mid and model_short:
                 result[str(mid)] = model_short
         return result
 
