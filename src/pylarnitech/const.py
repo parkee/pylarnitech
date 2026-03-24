@@ -77,6 +77,7 @@ AC_FAN_LOW = 1
 AC_FAN_MEDIUM = 2
 AC_FAN_HIGH = 3
 AC_FAN_TURBO = 4
+AC_FAN_NIGHT = 5
 
 AC_FAN_MODES = {
     AC_FAN_AUTO: "auto",
@@ -84,4 +85,5 @@ AC_FAN_MODES = {
     AC_FAN_MEDIUM: "medium",
     AC_FAN_HIGH: "high",
     AC_FAN_TURBO: "turbo",
+    AC_FAN_NIGHT: "night",
 }
