@@ -223,6 +223,21 @@ class LarnitechAdminClient:
             [module_id],
         )
 
+    async def get_module_api(self, module_id: str) -> dict[str, Any]:
+        """Get module API info (full model description).
+
+        Returns dict with keys:
+        - model_api: API identifier, e.g., "DWHC10C"
+        - model_name: Full description, e.g.,
+            "DW-HC-10.C heating control module, 10 outputs, 12 inputs"
+        - enabled: bool
+        - cfgid: module ID
+        """
+        return await self._api_call(
+            "Modules.getModuleApi",
+            [module_id],
+        )
+
     async def get_module_info(self, module_id: str) -> dict[str, Any]:
         """Get pin-level info for a module (types and paths).
 
