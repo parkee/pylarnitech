@@ -313,8 +313,11 @@ class LarnitechAdminClient:
     ) -> dict[str, Any]:
         """Change a single pin's type while preserving all other pins.
 
-        Fetches the current HW config, rebuilds the complete connector
-        config with the one pin changed, and sends all pins together.
+        Fetches the current HW config and rebuilds the complete config
+        for ALL connectors (mode, out, in, dm, etc.) with the one pin
+        changed.  The Larnitech backend requires all connectors in a
+        single request — omitting a connector resets its pins and
+        triggers P&P device errors.
 
         Args:
             module_id: e.g., "339"
@@ -330,34 +333,32 @@ class LarnitechAdminClient:
 
         data = hw_config.get("data", {})
         hw_types = hw_config.get("hwTypes", {})
-        connector_pins = data.get(connector, {})
-        connector_hw = hw_types.get(connector, {})
 
-        if not isinstance(connector_pins, dict):
-            return {"success": False, "message": f"No pins for connector {connector}"}
+        if not isinstance(data, dict):
+            return {"success": False, "message": "No pin data in HW config"}
 
-        # Normalize hwTypes to dict form
-        if isinstance(connector_hw, list):
-            connector_hw = {str(i): v for i, v in enumerate(connector_hw)}
-
-        # Build reverse mapping: type_code → hw_letter
-        code_to_letter = connector_hw
-
-        # Build complete hw config for all pins in this connector
         parts: list[str] = []
-        for pn, pin_data in connector_pins.items():
-            current_code = (
-                pin_data.get("value")
-                if isinstance(pin_data, dict)
-                else pin_data
-            )
-            if str(pn) == str(pin_num):
-                # Use the new letter for the pin being changed
-                parts.append(f"hw[{connector}][{pn}]={hw_letter}")
-            else:
-                # Keep current letter
-                letter = code_to_letter.get(str(current_code), "-")
-                parts.append(f"hw[{connector}][{pn}]={letter}")
+
+        # Build hw entries for ALL connectors
+        for conn_name, conn_pins in data.items():
+            if not isinstance(conn_pins, dict):
+                continue
+
+            conn_hw = hw_types.get(conn_name, {})
+            if isinstance(conn_hw, list):
+                conn_hw = {str(i): v for i, v in enumerate(conn_hw)}
+
+            for pn, pin_data in conn_pins.items():
+                current_code = (
+                    pin_data.get("value")
+                    if isinstance(pin_data, dict)
+                    else pin_data
+                )
+                if conn_name == connector and str(pn) == str(pin_num):
+                    parts.append(f"hw[{conn_name}][{pn}]={hw_letter}")
+                else:
+                    letter = conn_hw.get(str(current_code), "-")
+                    parts.append(f"hw[{conn_name}][{pn}]={letter}")
 
         if not parts:
             return {"success": False, "message": "No pins found"}
@@ -375,6 +376,9 @@ class LarnitechAdminClient:
     ) -> dict[str, Any]:
         """Set a single pin parameter (min, max, runtime, etc).
 
+        Rebuilds all connectors (like set_module_pin_type) and appends
+        the addparam entry for the target pin.
+
         Args:
             module_id: e.g., "339"
             connector: e.g., "dm", "OUT"
@@ -384,8 +388,41 @@ class LarnitechAdminClient:
 
         Returns dict with 'success' (bool) and 'message' (str).
         """
-        hw_config = f"hw[{connector}][{pin_num}][{param_name}]={value}"
-        return await self.set_module_hw(module_id, hw_config)
+        hw_config = await self.get_module_hw_config(module_id)
+        if not isinstance(hw_config, dict):
+            return {"success": False, "message": "Could not fetch HW config"}
+
+        data = hw_config.get("data", {})
+        hw_types = hw_config.get("hwTypes", {})
+
+        if not isinstance(data, dict):
+            return {"success": False, "message": "No pin data in HW config"}
+
+        parts: list[str] = []
+
+        # Build hw entries for ALL connectors
+        for conn_name, conn_pins in data.items():
+            if not isinstance(conn_pins, dict):
+                continue
+            conn_hw = hw_types.get(conn_name, {})
+            if isinstance(conn_hw, list):
+                conn_hw = {str(i): v for i, v in enumerate(conn_hw)}
+            for pn, pin_data in conn_pins.items():
+                current_code = (
+                    pin_data.get("value")
+                    if isinstance(pin_data, dict)
+                    else pin_data
+                )
+                letter = conn_hw.get(str(current_code), "-")
+                parts.append(f"hw[{conn_name}][{pn}]={letter}")
+
+        # Append the param change
+        parts.append(
+            f"addparam[{connector}][{pin_num}][{param_name}]={value}"
+        )
+
+        full_config = "&".join(parts)
+        return await self.set_module_hw(module_id, full_config)
 
     async def reboot_module(self, module_id: str, serial_dec: str) -> bool:
         """Reboot a CAN bus module.
