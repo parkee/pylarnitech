@@ -16,6 +16,7 @@ from .models import (
     LarnitechDeviceStatus,
     LarnitechIRSignal,
 )
+from .native import LarnitechNativeClient
 
 __all__ = [
     "ACState",
@@ -30,6 +31,7 @@ __all__ = [
     "LarnitechDeviceStatus",
     "LarnitechError",
     "LarnitechIRSignal",
+    "LarnitechNativeClient",
     "LarnitechTimeoutError",
     "encode_float2",
     "status_float2",

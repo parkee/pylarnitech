@@ -6,6 +6,7 @@ from __future__ import annotations
 DEFAULT_WS_PORT = 8080
 DEFAULT_HTTP_PORT = 8888
 DEFAULT_ADMIN_PORT = 80
+DEFAULT_NATIVE_PORT = 55555  # native AES protocol (experimental write channel)
 
 # Device types
 DEVICE_TYPE_AC = "AC"

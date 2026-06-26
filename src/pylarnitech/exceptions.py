@@ -1,5 +1,7 @@
 """Exceptions for the Larnitech client library."""
 
+from __future__ import annotations
+
 
 class LarnitechError(Exception):
     """Base exception for Larnitech errors."""

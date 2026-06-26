@@ -1,6 +1,6 @@
 [project]
 name = "pylarnitech"
-version = "0.2.10"
+version = "0.3.0"
 description = "Python client library for Larnitech smart home controllers"
 readme = "README.md"
 authors = [
@@ -19,6 +19,12 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9.0",
+]
+
+[project.optional-dependencies]
+# Experimental native protocol (TCP 55555) write channel. See native.py / NATIVE_PROTOCOL_AUTH_APPROACH.md.
+native = [
+    "cryptography>=42.0",
 ]
 
 [project.urls]
